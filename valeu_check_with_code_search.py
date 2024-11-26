@@ -19,7 +19,6 @@ def parse_text(text):
     package_pattern = r'Libraries or dependencies:(.*?)(\n\n|$)'
     code_pattern = r'```(.*?)\n(.*?)```'
     input_pattern = r'@@@(.*?)@@@'
-    expected_output_pattern = r'Expected output:(.*?)@@@'
 
     # Знаходимо всі бібліотеки
     package_match = re.search(package_pattern, text, re.DOTALL)
@@ -33,9 +32,6 @@ def parse_text(text):
     input_match = re.search(input_pattern, text, re.DOTALL)
     input_examples = input_match.group(1).strip().split("\n") if input_match else []
 
-    # Знаходимо очікуваний вивід
-    expected_output_match = re.search(expected_output_pattern, text, re.DOTALL)
-    expected_output = expected_output_match.group(1).strip() if expected_output_match else None
 
     return libraries, code_snippets, input_examples, expected_output
 
