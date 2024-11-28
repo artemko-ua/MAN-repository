@@ -6,6 +6,30 @@ import sys
 from io import StringIO
 from unittest.mock import patch
 
+# Оновлений клас для пам'яті
+class CommonMemory:
+    def __init__(self):
+        self.memory = {}
+
+    def add_fact(self, key, value):
+        """Додає факт до пам'яті."""
+        self.memory[key] = value
+        print(f"Додано до пам'яті: {key} -> {value}")
+
+    def remove_fact(self, key):
+        """Видаляє факт з пам'яті."""
+        if key in self.memory:
+            del self.memory[key]
+            print(f"Видалено з пам'яті: {key}")
+        else:
+            print(f"Факт для {key} не знайдено в пам'яті.")
+
+    def get_memory(self):
+        """Повертає всю пам'ять."""
+        return self.memory
+
+# Патерни для парсингу команд пам'яті
+
 LANGUAGES = {
     "python": {"extension": ".py", "command": [sys.executable]},
     "javascript": {"extension": ".js", "command": ["node"]},
@@ -14,11 +38,13 @@ LANGUAGES = {
     "cpp": {"extension": ".cpp", "command": ["g++", "{file}", "-o", "{basename}", "&&", "./{basename}"]},
 }
 
-def parse_text(text):
-    """Парсить текст для бібліотек, коду та інструкцій."""
+def parse_text(text, memory):
+    """Парсити текст для бібліотек, коду, інструкцій та команд пам'яті."""
     package_pattern = r'Libraries or dependencies:(.*?)(\n\n|$)'
     code_pattern = r'```(.*?)\n(.*?)```'
     input_pattern = r'@@@(.*?)@@@'
+    common_memory_add_pattern = r"CommonMemory:\s*add:\s*(\w+)\s*->\s*(.*)"
+    common_memory_rm_pattern = r"CommonMemory:\s*rm:\s*(\w+)"
 
     # Знаходимо всі бібліотеки
     package_match = re.search(package_pattern, text, re.DOTALL)
@@ -32,8 +58,20 @@ def parse_text(text):
     input_match = re.search(input_pattern, text, re.DOTALL)
     input_examples = input_match.group(1).strip().split("\n") if input_match else []
 
+    # Парсимо команди пам'яті (add і rm)
+    add_matches = re.finditer(common_memory_add_pattern, text)
+    for match in add_matches:
+        key = match.group(1)
+        value = match.group(2)
+        memory.add_fact(key, value)
 
-    return libraries, code_snippets, input_examples, expected_output
+    remove_matches = re.finditer(common_memory_rm_pattern, text)
+    for match in remove_matches:
+        key = match.group(1)
+        memory.remove_fact(key)
+
+    return libraries, code_snippets, input_examples
+
 
 def install_libraries(language, libraries):
     """Встановлює залежності для вказаної мови програмування."""
@@ -108,9 +146,15 @@ if __name__ == "__main__":
     print("Hello, World!")
     ```
     @@@ Hello, World! @@@
+    
+    CommonMemory: add: user_language -> Python
+    CommonMemory: add: user_prefers_framework -> Django
+    CommonMemory: rm: user_language
     """
     
-    libraries, code_snippets, input_examples, expected_output = parse_text(text)
+    memory = CommonMemory()  # Ініціалізація пам'яті
+    libraries, code_snippets, input_examples = parse_text(text, memory)
+    
     results = []
 
     for lang_line, code in code_snippets:
@@ -120,8 +164,9 @@ if __name__ == "__main__":
             results.append({"library_install_results": install_results})
         file_name = save_code_to_file(language, code)
         execution_results = run_code(language, file_name, input_examples)
-        execution_results["expected_output"] = expected_output
+        execution_results["memory_state"] = memory.get_memory()  # Додаємо стан пам'яті
         results.append(execution_results)
 
     generate_report(results)
     print("Результати виконання збережені у report.json")
+    
